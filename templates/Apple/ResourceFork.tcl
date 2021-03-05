@@ -1,4 +1,36 @@
 # WORK IN PROGRESS!
+proc decode_fork_attrs {attrs offset} {
+    if {0 != ($attrs & 0x8000)} {
+        entry "read-only" "Yes, file is read-only" 2 $offset
+    }
+    if {0 != ($attrs & 0x4000)} {
+        entry "compact" "Yes, compact resources on update" 2 $offset
+    }
+    if {0 != ($attrs & 0x2000)} {
+        entry "changed" "Yes, th resource fork has been changed and needs writing to disk" 2 $offset
+    }
+}
+
+proc decode_rsrc_attrs {attrs offset} {
+    if {0 != ($attrs & 0x40)} {
+        entry "inSysHeap" "Load into System heap" 1 $offset
+    }
+    if {0 != ($attrs & 0x20)} {
+        entry "purge" "Yes, can be purged when memory is low" 1 $offset
+    }
+    if {0 != ($attrs & 0x10)} {
+        entry "lock" "Yes, is locked" 1 $offset
+    }
+    if {0 != ($attrs & 0x08)} {
+        entry "protect" "Yes" 1 $offset
+    }
+    if {0 != ($attrs & 0x04)} {
+        entry "preload" "Yes, preload" 1 $offset
+    }
+    if {0 != ($attrs & 0x02)} {
+        entry "changed" "Yes, the resource has been changed and needs writing to disk" 1 $offset
+    }
+}
 
 big_endian
 
@@ -31,7 +63,13 @@ section "File Format" {
 
         uint32 "Next Resource Map"
         uint16 "File Reference"
-        uint16 "Attributes"
+        section "Fork Attributes" {
+            set fork_attributes_offset [pos]
+            set fork_attributes [uint16]
+            sectionvalue $fork_attributes
+            decode_fork_attrs $fork_attributes $fork_attributes_offset
+        }
+
         uint16 "Type List Offset"
         set name_list_offset [uint16 "Name List Offset"]
         set num_types [uint16 "Num Types - 1"]
@@ -55,7 +93,12 @@ section "File Format" {
                     section $i {
                         uint16 "Resource ID"
                         uint16 "Name List Offset"
-                        uint8 "Attributes"
+                        section "Attributes" {
+                            set rsrc_attributes_offset [pos]
+                            set rsrc_attributes [uint8]
+                            sectionvalue $rsrc_attributes
+                            decode_rsrc_attrs $rsrc_attributes $rsrc_attributes_offset
+                        }
                         set data_offset [uint24 "Data Offset"]
                         section "Data" {
                             set save_pos [pos]
